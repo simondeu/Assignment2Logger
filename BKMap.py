@@ -12,7 +12,7 @@ class BKMap(Tk):
     def __init__(self, filename):
         Tk.__init__(self)
         self.logger = Logger(filename)
-        self.logs = {}
+        self.log = {}
         self.filename = filename
         self.title = 'Map of Bouwkunde'
         self.h = 1080
@@ -42,7 +42,7 @@ class BKMap(Tk):
             self.w, self.h, fill="black", anchor="se", text=""
         )
         self.loggingText = self.canvas.create_text(
-            self.w//2, 0, fill="black", anchor="n", text=""
+            self.w//2, 0, fill="black", anchor="n", text="Not logging :("
         )
     
     def output_info(self):
@@ -94,8 +94,12 @@ Press 'P' to print logs\n \
         if self.isLogging:
             self.isLogging = False
             self.logger.endLog()
-            if self.log[self.currentPos] is None:
+            try:
+                self.log[self.currentPos]
+            except:
                 self.log[self.currentPos] = self.logger.getLogs()
+            else:
+                self.log[self.currentPos] += self.logger.getLogs()
             txt = 'Not logging :('
         else:
             self.isLogging = True
@@ -107,8 +111,8 @@ Press 'P' to print logs\n \
         while self.isRunning:
             self.canvas.update()
 
-    def printLogs(self):
-        print(self.log)
+    def printLogs(self, event):
+        print(len(self.log[self.currentPos]))
         
     def exit(self, event):
         print('Bye!')
