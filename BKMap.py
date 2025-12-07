@@ -13,6 +13,7 @@ class BKMap(Tk):
         Tk.__init__(self)
         self.logger = Logger(filename)
         self.log = {}
+        self.points = []
         self.filename = filename
         self.title = 'Map of Bouwkunde'
         self.h = 1080
@@ -22,8 +23,13 @@ class BKMap(Tk):
         self.bind("q", self.exit)
         self.bind("l", self.logging)
         self.bind("p", self.printLogs)
+        self.bind("x", self.deletePoint)
         self.isLogging = False
         self.output_info()
+
+        self.setTexts()
+
+        self.actualPointIndex = None
 
         self.openImage()
         self.setCanvas()
@@ -37,21 +43,21 @@ class BKMap(Tk):
 
     def setDisplay(self):
         self.bind("<Motion>", self.displayCoords)
-        self.bind("<ButtonRelease>", self.onMouseClick)
-        self.coordstext = self.canvas.create_text(
-            self.w, self.h, fill="black", anchor="se", text=""
-        )
-        self.loggingText = self.canvas.create_text(
-            self.w//2, 0, fill="black", anchor="n", text="Not logging :("
-        )
+        self.bind("<ButtonRelease-1>", self.onLeftMouseClick)
+        self.bind("<ButtonRelease-3>", self.onRightMouseClick)
+        
+    def setTexts(self):
+        self.logtxt = "Not logging :("
+        self.coordtxt = "0, 0"
     
     def output_info(self):
         print(
             f"=====Use=====\n\
 Press on the map to add location. \n\
 Press 'L' to start or stop logging\n\
-Press 'Q' to quit the program \n \
-Press 'P' to print logs\n \
+Press 'Q' to quit the program \n\
+Press 'P' to print logs\n\
+Rightclick on point to select and 'X' to remove\n\
 ============= "
         )
 
@@ -75,20 +81,30 @@ Press 'P' to print logs\n \
             and (event.y < self.h)
         ):
             wx, wy = (event.x, event.y)
-            s = f'{wx}, {wy}'
-            self.canvas.itemconfig(self.coordstext, text=s)
+            self.coordtxt = f'{wx}, {wy}'
+            self.canvas.itemconfig(self.coordstext, text=self.coordtxt)
 
-    def onMouseClick(self, event):
-        self.drawPoint(event.x, event.y)
+    def onLeftMouseClick(self, event):
+        self.points.append([event.x, event.y, 'red'])
         if self.isLogging:
             self.logger.endLog()
             self.log[self.currentPos] = self.logger.getLogs()
             self.logger.startLog()
         self.currentPos = (event.x, event.y)
 
-    def drawPoint(self, x, y):
+    def onRightMouseClick(self, event):
+        toleranceRadius = 6
+        for i, pt in enumerate(self.points):
+            if abs(pt[0] - event.x) <= toleranceRadius and abs(pt[1] - event.y) <= toleranceRadius:
+                if self.actualPointIndex is not None:
+                    self.points[self.actualPointIndex][2] = 'red'
+                self.points[i][2] = 'green'
+                self.actualPointIndex = i
+
+
+    def drawPoint(self, x, y, col):
         radius = 3
-        self.canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill='red')
+        self.canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=col)
 
     def logging(self, event):
         if self.isLogging:
@@ -100,19 +116,43 @@ Press 'P' to print logs\n \
                 self.log[self.currentPos] = self.logger.getLogs()
             else:
                 self.log[self.currentPos] += self.logger.getLogs()
-            txt = 'Not logging :('
+            self.logtxt = 'Not logging :('
         else:
             self.isLogging = True
             self.logger.startLog()
-            txt = 'Logging! :D'
-        self.canvas.itemconfig(self.loggingText, text = txt)
+            self.logtxt = 'Logging! :D'
+        self.canvas.itemconfig(self.loggingText, text = self.logtxt)
 
     def draw(self):
         while self.isRunning:
+            self.canvas.delete('all')
+            self.canvas.create_image(0,0,image=self.img, anchor= 'nw')
+            for pt in self.points:
+                self.drawPoint(pt[0], pt[1], pt[2])
+            self.coordstext = self.canvas.create_text(
+                self.w, self.h, fill="black", anchor="se", text= self.coordtxt
+            )
+            self.loggingText = self.canvas.create_text(
+                self.w//2, 0, fill="black", anchor="n", text = self.logtxt
+            )
             self.canvas.update()
 
     def printLogs(self, event):
-        print(len(self.log[self.currentPos]))
+        print(self.log.keys())
+
+    def deletePoint(self, event):
+        if self.isLogging:
+            return
+        del self.points[self.actualPointIndex]
+
+        try:
+            keys = list(self.log)
+            key = keys[self.actualPointIndex]
+            self.log.pop(key)
+        except:
+            print('Point had no logs')
+
+        self.actualPointIndex = None
         
     def exit(self, event):
         print('Bye!')
