@@ -11,7 +11,7 @@ class Logger():
 
     def startLog(self):
         with open(self.fileName, 'w') as f:
-            f.write("")
+            f.write('''8-12-2025 14:18:33\t"MAC Address"\t"Vendor"\t"SSID"\t"Access Point Name"\t"Connected AP"\t"Signal Strength"\t"Quality"\t"Station Count"\t"Frequency"\t"Position"\t"Info"\t"Adapter"''')
     
     def endLog(self):
         with open(self.fileName) as f:

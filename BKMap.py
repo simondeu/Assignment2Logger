@@ -7,6 +7,7 @@ from PIL import Image, ImageTk
 from Logger import Logger
 import time
 from compute_score import compute_score
+from Log_to_csv_mvp import log_to_csv
 
 
 class BKMap(Tk):
@@ -118,6 +119,7 @@ Rightclick on point to select and 'X' to remove\n\
                 self.log[self.currentPos] = self.logger.getLogs()
             else:
                 self.log[self.currentPos] += self.logger.getLogs()
+            self.getScores(self.currentPos)
             self.logtxt = 'Not logging :('
         else:
             self.isLogging = True
@@ -140,7 +142,8 @@ Rightclick on point to select and 'X' to remove\n\
             self.canvas.update()
 
     def printLogs(self, event):
-        print(self.log.keys())
+        for key in self.log.keys():
+            print(f'{key}: {self.log[key][:5]}')
 
     def deletePoint(self, event):
         if self.isLogging:
@@ -155,6 +158,14 @@ Rightclick on point to select and 'X' to remove\n\
             print('Point had no logs')
 
         self.actualPointIndex = None
+
+    def getScores(self, key):
+        x,y = key[0], key[1]
+        fileName = f"Live_log_{x}_{y}.txt"
+        with open(fileName, 'w') as f:
+            for line in self.log[key]:
+                f.write(f'{line}')
+        csvFile = log_to_csv(fileName, 'eduroam', key)
         
     def exit(self, event):
         print('Bye!')
