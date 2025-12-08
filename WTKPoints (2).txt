@@ -1,0 +1,5 @@
+322,581,('Location_1', 982),('Location_2', 654),('Location_3', 566),('Location_4', 1219)
+527,465,('Location_1', 982),('Location_2', 654),('Location_3', 566),('Location_4', 1219)
+525,271,('Location_1', 982),('Location_2', 654),('Location_3', 564),('Location_4', 1219)
+817,246,('Location_1', 982),('Location_2', 654),('Location_3', 564),('Location_4', 1219)
+814,511,('Location_1', 982),('Location_2', 654),('Location_3', 564),('Location_4', 1219)
