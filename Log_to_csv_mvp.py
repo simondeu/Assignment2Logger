@@ -34,7 +34,6 @@ def log_to_csv(log_path, target_ssid, pos):
                 continue
 
             # 2. Filter by SSID
-            print(header)
             ssid_value = row[header.index("SSID")]
             if ssid_value != target_ssid:
                 continue

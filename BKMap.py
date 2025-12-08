@@ -6,7 +6,6 @@ from matplotlib import cm
 from PIL import Image, ImageTk
 from Logger import Logger
 import time
-from compute_score import process_csv_fingerprint
 from Log_to_csv_mvp import log_to_csv
 
 import csv
@@ -22,6 +21,7 @@ class BKMap(Tk):
         self.interface()
         self.logger = Logger(filename)
         self.log = {}
+        self.scores = {}
         self.points = []
         self.filename = filename
         self.title = 'Map of Bouwkunde'
@@ -33,6 +33,7 @@ class BKMap(Tk):
         self.bind("l", self.logging)
         self.bind("p", self.printLogs)
         self.bind("x", self.deletePoint)
+        self.bind("d", self.dictToWNT)
         self.isLogging = False
         self.output_info()
 
@@ -109,6 +110,14 @@ class BKMap(Tk):
             "Location_2" : "location_2.csv",
             "Location_3" : "location_3.csv",
             "Location_4" : "location_4.csv",
+        }
+
+
+        self.test_files = {
+            "Test_Location_1" : "known_locations/known_1.csv",
+            "Test_Location_2" : "known_locations/known_2.csv",
+            "Test_Location_3" : "known_locations/known_3.csv",
+            "Test_Location_4" : "known_locations/known_4.csv"
         }
 
     def setDisplay(self):
@@ -233,6 +242,7 @@ Rightclick on point to select and 'X' to remove\n\
             for line in self.log[key]:
                 f.write(f'{line}')
         csvFile = log_to_csv(fileName, 'eduroam', key)
+        self.scores[key] = self.compute_score(csvFile)
         
     def exit(self, event):
         print('Bye!')
@@ -286,7 +296,7 @@ Rightclick on point to select and 'X' to remove\n\
             observation_count = len(rss_list)
             reliability = observation_count / total_rows    # as proportion
 
-            if reliability >= MIN_RELIABILITY_PERCENT:
+            if reliability >= self.min_rel_per:
                 # stable signal -> Add Average RSS to fingerprint
                 avg_rss = round(mean(rss_list))
                 final_fingerprint[mac] = avg_rss
@@ -297,6 +307,58 @@ Rightclick on point to select and 'X' to remove\n\
         # print(f"   [DONE] Kept {len(final_fingerprint)} stable APs. Dropped {dropped_macs} noisy signals.")
         kept_count = len(final_fingerprint)
         return final_fingerprint, kept_count, total_rows
+
+    def score(self, target_fp, live_fp):
+        final_score = 0
+
+        if self.scor_alg == "M":    # Manhattan
+            for mac, target_rss in target_fp.items():
+                if mac in live_fp:
+                    final_score += abs(target_rss - live_fp[mac])
+                else:
+                    final_score += abs(target_rss - self.mis_pen_rss)
+
+        elif self.scor_alg == 'E':
+            sum_sq_diff = 0             # Euclidean
+            for mac, target_rss in target_fp.items():
+                if mac in live_fp:
+                    diff = target_rss - live_fp[mac]
+                    sum_sq_diff += (diff ** 2)
+                else:
+                    diff = target_rss - self.mis_pen_rss
+                    sum_sq_diff += (diff ** 2)
+            final_score = math.sqrt(sum_sq_diff)
+
+        # Penalize strong alien signals
+        for mac, live_rss in live_fp.items():
+            if mac not in target_fp and live_rss > -60:
+                final_score += 20
+        return final_score
+    
+    def dictToWNT(self,event):
+        with open('WTKPoints', 'w') as f:
+            for key, lst in self.scores.items():
+                f.write(f'{key[0]},{key[1]},{lst[0]},{lst[1]},{lst[2]},{lst[3]}\n')
+
+    def compute_score(self, live_observation):
+        targets = {}
+        for location, location_path in self.target_files.items():
+            fp, kept, total = self.process_csv_fingerprint(location_path)
+            if not fp:
+                print(f"Warning: no fingerprint for {location}, skipping.")
+                continue
+            targets[location] = {"fp": fp, "kept": kept, "total": total}
+
+        live_fp, live_kept, live_total = self.process_csv_fingerprint(live_observation)
+        if not live_fp:
+            print("Warning: no live fingerprint, skipping this cycle.")
+
+        score_lst = []
+        for location, target_info in targets.items():
+            target_fp = target_info["fp"]
+            live_score = self.score(target_fp, live_fp)
+            score_lst.append((location, live_score))
+        return score_lst
 
 def main():
     Map = BKMap()
