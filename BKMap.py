@@ -6,6 +6,8 @@ from matplotlib import cm
 from PIL import Image, ImageTk
 from Logger import Logger
 import time
+from compute_score import compute_score
+
 
 class BKMap(Tk):
 
