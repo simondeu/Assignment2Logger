@@ -6,14 +6,20 @@ from matplotlib import cm
 from PIL import Image, ImageTk
 from Logger import Logger
 import time
-from compute_score import compute_score
+from compute_score import process_csv_fingerprint
 from Log_to_csv_mvp import log_to_csv
+
+import csv
+from collections import defaultdict
+from statistics import mean
+import math  # Needed for Euclidean distance (square root)
 
 
 class BKMap(Tk):
 
     def __init__(self, filename):
         Tk.__init__(self)
+        self.interface()
         self.logger = Logger(filename)
         self.log = {}
         self.points = []
@@ -43,6 +49,67 @@ class BKMap(Tk):
         self.isRunning = True
         self.draw()
 
+    def interface(self):
+        print("\n" + "=" * 170)
+        print("                                                                     WI-FI FINGERPRINTING")
+        print("                                                                         TREASURE MAP")
+        print("=" * 170)
+
+        # =======================
+        # KNOBS FOR TREASURE HUNT
+        # =======================
+
+        # MINIMUM RELIABILITY: as a fraction
+        MIN_RELIABILITY_PERCENT = input("Minimum reliability percentage (default 0): ")
+        if MIN_RELIABILITY_PERCENT == "":
+            MIN_RELIABILITY_PERCENT = 0.00
+        else:
+            MIN_RELIABILITY_PERCENT = float(MIN_RELIABILITY_PERCENT) / 100.0
+
+        # Missing-signal penalty (dBm)
+        MISSING_PENALTY_RSS = input("Missing penalty RSS (default: -100): ")
+        if MISSING_PENALTY_RSS == "":
+            MISSING_PENALTY_RSS = -100
+        else:
+            MISSING_PENALTY_RSS = int(MISSING_PENALTY_RSS)
+
+        # Scoring algorithm (M or E)
+        SCORING_ALGORITHM = input("Choose scoring algorithm, (default) M=Manhattan or E=Euclidean: ")
+        if SCORING_ALGORITHM == "":
+            SCORING_ALGORITHM = "M"
+        else:
+            SCORING_ALGORITHM = SCORING_ALGORITHM.strip().upper()
+
+        # Refreshing time
+        REFRESHING_TIME = input("Refreshing time in seconds (default 2): ")
+        if REFRESHING_TIME == "":
+            REFRESHING_TIME = 2
+        else:
+            REFRESHING_TIME = float(REFRESHING_TIME)
+
+        # Difference tolerance
+        TOLL = input("Tolerance (default 3): ")
+        if TOLL == "":
+            TOLL = 3
+        else:
+            TOLL = float(TOLL)
+
+        self.min_rel_per = MIN_RELIABILITY_PERCENT
+        self.mis_pen_rss = MISSING_PENALTY_RSS
+        self.scor_alg = SCORING_ALGORITHM
+        self.ref_time = REFRESHING_TIME
+        self.toll = TOLL
+
+        # =========
+        # LOAD DATA
+        # =========
+
+        self.target_files = {
+            "Location_1" : "location_1.csv",
+            "Location_2" : "location_2.csv",
+            "Location_3" : "location_3.csv",
+            "Location_4" : "location_4.csv",
+        }
 
     def setDisplay(self):
         self.bind("<Motion>", self.displayCoords)
@@ -178,6 +245,58 @@ Rightclick on point to select and 'X' to remove\n\
         self.isRunning = False
         self.destroy()
         time.sleep(1)
+
+
+    
+
+    def process_csv_fingerprint(self, filepath):
+
+        mac_rss_values = defaultdict(list)              # values are lists (become rss_list)
+        total_rows = 0
+
+        with open(filepath, 'r', newline='') as file:
+            reader = csv.reader(file)
+            # Handle potential different headers or skip first row
+            header = next(reader, None)
+
+            # quick checks
+            for row in reader:
+                if len(row) < 4: continue # check valid row length
+                ssid = row[2].strip()
+                if "eduroam" not in ssid.lower():  # check if "eduroam" is listed
+                    continue
+                total_rows += 1
+                mac = row[1].strip()                    # collect MAC
+                try:
+                    rss = int(row[3].strip())           # collect RSS
+                    mac_rss_values[mac].append(rss)     # (key <- mac): (value <- rss_list)
+                except ValueError:
+                    continue
+
+        if total_rows == 0:
+            print("   [WARNING] No valid Eduroam data found in file.")
+            return None, 0, 0
+
+        # FILTERING
+        final_fingerprint = {}
+        dropped_macs = 0
+
+        for mac, rss_list in mac_rss_values.items():
+            # Frequency Check: How often did this MAC appear?
+            observation_count = len(rss_list)
+            reliability = observation_count / total_rows    # as proportion
+
+            if reliability >= MIN_RELIABILITY_PERCENT:
+                # stable signal -> Add Average RSS to fingerprint
+                avg_rss = round(mean(rss_list))
+                final_fingerprint[mac] = avg_rss
+            else:
+                # It's noise
+                dropped_macs += 1
+
+        # print(f"   [DONE] Kept {len(final_fingerprint)} stable APs. Dropped {dropped_macs} noisy signals.")
+        kept_count = len(final_fingerprint)
+        return final_fingerprint, kept_count, total_rows
 
 def main():
     Map = BKMap()
