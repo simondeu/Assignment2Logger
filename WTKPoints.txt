@@ -1,0 +1,3 @@
+208,567,('Test_Location_1', 265),('Test_Location_2', 936),('Test_Location_3', 278),('Test_Location_4', 685)
+476,506,('Test_Location_1', 409),('Test_Location_2', 438),('Test_Location_3', 238),('Test_Location_4', 645)
+538,417,('Test_Location_1', 805),('Test_Location_2', 520),('Test_Location_3', 134),('Test_Location_4', 645)
