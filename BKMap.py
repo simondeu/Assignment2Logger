@@ -34,6 +34,7 @@ class BKMap(Tk):
         self.bind("p", self.printLogs)
         self.bind("x", self.deletePoint)
         self.bind("d", self.dictToWNT)
+        self.bind("s", self.saveLogs)
         self.isLogging = False
         self.output_info()
 
@@ -137,6 +138,8 @@ Press 'L' to start or stop logging\n\
 Press 'Q' to quit the program \n\
 Press 'P' to print logs\n\
 Rightclick on point to select and 'X' to remove\n\
+Press 'S' to save dict as a txt file\n\
+Press 'D' to write points to WKT with scores\n\
 ============= "
         )
 
@@ -336,7 +339,7 @@ Rightclick on point to select and 'X' to remove\n\
         return final_score
     
     def dictToWNT(self,event):
-        with open('WTKPoints', 'w') as f:
+        with open('WTKPoints.txt', 'w') as f:
             for key, lst in self.scores.items():
                 f.write(f'{key[0]},{key[1]},{lst[0]},{lst[1]},{lst[2]},{lst[3]}\n')
 
@@ -346,7 +349,7 @@ Rightclick on point to select and 'X' to remove\n\
             fp, kept, total = self.process_csv_fingerprint(location_path)
             if not fp:
                 print(f"Warning: no fingerprint for {location}, skipping.")
-                continue
+                targets[location] = {"fp": math.inf, "kept": kept, "total": total}
             targets[location] = {"fp": fp, "kept": kept, "total": total}
 
         live_fp, live_kept, live_total = self.process_csv_fingerprint(live_observation)
@@ -359,6 +362,12 @@ Rightclick on point to select and 'X' to remove\n\
             live_score = self.score(target_fp, live_fp)
             score_lst.append((location, live_score))
         return score_lst
+
+    def saveLogs(self, event):
+        with open('AllLogs.txt', 'w') as f:
+            for key, item in self.log.items():
+                f.write(f'{key}: {item}\n')
+
 
 def main():
     Map = BKMap()
